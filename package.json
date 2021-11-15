@@ -2,17 +2,16 @@
   "name": "secretlyawesome",
   "version": "0.0.1",
   "description": "",
-  "main": "dist/index.js",
+  "main": "output/index.js",
   "scripts": {
     "build": "rollup -c",
     "docs:generate": "typedoc src/index.ts"
   },
   "keywords": [],
   "author": "Samuel Clark <samrocksc@gmail.com>",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
-    "@google-cloud/secret-manager": "^3.9.1",
-    "tslib": "^2.3.1"
+    "@google-cloud/secret-manager": "^3.9.1"
   },
   "devDependencies": {
     "@rollup/plugin-typescript": "^8.2.5",
@@ -23,6 +22,7 @@
     "eslint-plugin-functional": "^3.6.0",
     "rollup": "^2.56.3",
     "ts-lib": "^0.0.5",
+    "tslib": "^2.3.1",
     "typedoc": "^0.22.4",
     "typescript": "^4.4.3"
   },

@@ -16,6 +16,10 @@ const makeSecrets = (input) => {
         get: async () => getSecret(secretInput),
         delete: async () => deleteSecret(secretInput),
         addVersion: async (secretContent) => addNewVersion({ ...secretInput, secretContent }),
+        access: async (version) => access({
+            ...secretInput,
+            secretVersion: version?.toString() || 'latest',
+        }),
     };
 };
 /**
@@ -28,12 +32,14 @@ const makeSecrets = (input) => {
  * await secretManager.list()
  * ```
  *
- * NOTE: because we are using functions for our containers, we can actually
+ * 1a: because we are using functions for our containers, we can actually
  * use kind of a cool pattern of asynchronous instantiation that we wouldn't otherwise
  * have with es6 classes
  */
 const makeSecretsWithProject = (parent) => {
     const client = new secretManager.SecretManagerServiceClient();
+    // 1b: what if we wanted to get a list of secrets first to check if the secret exists?
+    // const initialSecrets = async listSecrets({ parent, client }),
     return {
         list: async () => listSecrets({ parent, client }),
         versions: async () => versions({ parent, client }),
@@ -64,7 +70,6 @@ const listSecrets = async (input) => {
  * List all versions of secrets
  *
  * Example:
- *
  * ```
  * const secretManager = await makeSecretsWithProject('project/xxxxx');
  * console.log(await secretManager.secret('tester').access('latest'));
@@ -81,7 +86,6 @@ const versions = async (input) => {
  * A simple getSecret function for retrieving a secret
  *
  * Example:
- *
  * ```
  * const secretManager = await makeSecretsWithProject('project/xxxxx');
  * console.log(await secretManager.secret('tester').create())
@@ -121,7 +125,6 @@ const getSecret = async (input) => {
  * A simple getSecret function for retrieving a secret
  *
  * Example:
- *
  * ```
  * const secretManager = await makeSecretsWithProject('project/xxxxx');
  * console.log(await secretManager.secret('tester').delete())
@@ -138,7 +141,6 @@ const deleteSecret = async (input) => {
  * Adds a new version to the secret
  *
  * Example:
- *
  * ```
  * const secretManager = await makeSecretsWithProject('project/xxxxx');
  * console.log(await secretManager.secret('tester').delete())
@@ -159,7 +161,6 @@ const addNewVersion = async (input) => {
  * TODO: Answer the question of whether this should default to _latest_?
  *
  * Example:
- *
  * ```
  * const secretManager = await makeSecretsWithProject('project/xxxxx');
  * console.log(await secretManager.secret('tester').access('latest'));
@@ -168,7 +169,7 @@ const addNewVersion = async (input) => {
 const access = async (input) => {
     const { secretId, client, secretVersion, parent } = input;
     const [accessResponse] = await client.accessSecretVersion({
-        name: `${parent}/secrets/${secretId}/${secretVersion}`,
+        name: `${parent}/secrets/${secretId}/versions/${secretVersion}`,
     });
     return accessResponse?.payload?.data?.toString() ?? null;
 };

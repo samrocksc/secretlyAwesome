@@ -54,6 +54,7 @@ type secretOutput = {
   readonly addVersion: (
     secretContent: string,
   ) => Promise<protos.google.cloud.secretmanager.v1.ISecretVersion>;
+  readonly access: (version?: number) => Promise<string | null>;
 };
 
 /**
@@ -83,6 +84,15 @@ const makeSecrets = (input: requiredInput): secretOutput => {
     delete: async () => deleteSecret(secretInput),
     addVersion: async (secretContent: string) =>
       addNewVersion({ ...secretInput, secretContent }),
+    access: async (version?: number) =>
+      access({
+        ...secretInput,
+        secretVersion: version?.toString() || 'latest',
+      }),
+    accessOnlyLatest: async () =>
+      accessOnlyLatest({
+        ...secretInput,
+      }),
   };
 };
 
@@ -96,12 +106,14 @@ const makeSecrets = (input: requiredInput): secretOutput => {
  * await secretManager.list()
  * ```
  *
- * NOTE: because we are using functions for our containers, we can actually
+ * 1a: because we are using functions for our containers, we can actually
  * use kind of a cool pattern of asynchronous instantiation that we wouldn't otherwise
  * have with es6 classes
  */
 export const makeSecretsWithProject = (parent: string): baseOutput => {
   const client = new SecretManagerServiceClient();
+  // 1b: what if we wanted to get a list of secrets first to check if the secret exists?
+  // const initialSecrets = async listSecrets({ parent, client }),
   return {
     list: async () => listSecrets({ parent, client }),
     versions: async () => versions({ parent, client }),
@@ -136,7 +148,6 @@ export const listSecrets = async (
  * List all versions of secrets
  *
  * Example:
- *
  * ```
  * const secretManager = await makeSecretsWithProject('project/xxxxx');
  * console.log(await secretManager.secret('tester').access('latest'));
@@ -156,27 +167,26 @@ export const versions = async (
  * A simple getSecret function for retrieving a secret
  *
  * Example:
- *
  * ```
  * const secretManager = await makeSecretsWithProject('project/xxxxx');
  * console.log(await secretManager.secret('tester').create())
  * ```
  */
-export const createSecret = (
-  input: requiredInput,
-) => async (): Promise<protos.google.cloud.secretmanager.v1.ISecret> => {
-  const { parent, client, secretId } = input;
-  const [secret] = await client.createSecret({
-    parent,
-    secretId,
-    secret: {
-      replication: {
-        automatic: {},
+export const createSecret =
+  (input: requiredInput) =>
+  async (): Promise<protos.google.cloud.secretmanager.v1.ISecret> => {
+    const { parent, client, secretId } = input;
+    const [secret] = await client.createSecret({
+      parent,
+      secretId,
+      secret: {
+        replication: {
+          automatic: {},
+        },
       },
-    },
-  });
-  return secret;
-};
+    });
+    return secret;
+  };
 
 /**
  * A simple getSecret function for retrieving a secret
@@ -202,7 +212,6 @@ export const getSecret = async (
  * A simple getSecret function for retrieving a secret
  *
  * Example:
- *
  * ```
  * const secretManager = await makeSecretsWithProject('project/xxxxx');
  * console.log(await secretManager.secret('tester').delete())
@@ -222,7 +231,6 @@ export const deleteSecret = async (
  * Adds a new version to the secret
  *
  * Example:
- *
  * ```
  * const secretManager = await makeSecretsWithProject('project/xxxxx');
  * console.log(await secretManager.secret('tester').delete())
@@ -246,7 +254,6 @@ export const addNewVersion = async (
  * TODO: Answer the question of whether this should default to _latest_?
  *
  * Example:
- *
  * ```
  * const secretManager = await makeSecretsWithProject('project/xxxxx');
  * console.log(await secretManager.secret('tester').access('latest'));
@@ -256,8 +263,20 @@ export const access = async (
   input: requiredInput & { readonly secretVersion: string },
 ): Promise<string | null> => {
   const { secretId, client, secretVersion, parent } = input;
+
   const [accessResponse] = await client.accessSecretVersion({
-    name: `${parent}/secrets/${secretId}/${secretVersion}`,
+    name: `${parent}/secrets/${secretId}/versions/${secretVersion}`,
+  });
+  return accessResponse?.payload?.data?.toString() ?? null;
+};
+
+export const accessOnlyLatest = async (
+  input: requiredInput,
+): Promise<string | null> => {
+  const { secretId, client, parent } = input;
+
+  const [accessResponse] = await client.accessSecretVersion({
+    name: `${parent}/secrets/${secretId}/versions/latest`,
   });
   return accessResponse?.payload?.data?.toString() ?? null;
 };
